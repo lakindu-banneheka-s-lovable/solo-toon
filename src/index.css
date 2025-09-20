@@ -2,41 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Solo-Toon Design System - Manga/Webtoon Reader Theme
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core brand colors - manga/anime inspired */
+    --background: 248 50% 98%;
+    --foreground: 232 35% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 232 35% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 232 35% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - vibrant purple for manga theme */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 262 83% 52%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - soft manga accent */
+    --secondary: 314 100% 96%;
+    --secondary-foreground: 262 83% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 248 50% 95%;
+    --muted-foreground: 232 20% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 314 100% 96%;
+    --accent-foreground: 262 83% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Reader specific colors */
+    --reader-bg: 230 15% 12%;
+    --reader-toolbar: 230 20% 18%;
+    --reader-text: 0 0% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Progress indicators */
+    --progress: 142 71% 45%;
+    --progress-bg: 220 13% 91%;
 
-    --radius: 0.5rem;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+
+    /* Beautiful gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(282 85% 65%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(248 50% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(314 100% 75%) 50%, hsl(45 100% 70%) 100%);
+    
+    /* Shadows */
+    --shadow-card: 0 4px 20px -2px hsl(262 83% 58% / 0.1);
+    --shadow-reader: 0 8px 40px -8px hsl(230 15% 12% / 0.3);
+    --shadow-float: 0 10px 40px -10px hsl(262 83% 58% / 0.2);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,33 +83,45 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark theme for manga reader */
+    --background: 230 15% 12%;
+    --foreground: 0 0% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 230 20% 18%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 230 20% 18%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 282 85% 65%;
+    --primary-foreground: 230 15% 12%;
+    --primary-hover: 282 85% 60%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 230 25% 25%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 230 25% 20%;
+    --muted-foreground: 220 15% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 230 25% 25%;
+    --accent-foreground: 0 0% 95%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Reader colors enhanced for dark */
+    --reader-bg: 230 15% 8%;
+    --reader-toolbar: 230 20% 15%;
+    --reader-text: 0 0% 95%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 230 25% 25%;
+    --input: 230 25% 25%;
+    --ring: 282 85% 65%;
+
+    /* Dark gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(282 85% 65%), hsl(262 83% 58%));
+    --gradient-card: linear-gradient(145deg, hsl(230 20% 18%), hsl(230 25% 22%));
+    --gradient-hero: linear-gradient(135deg, hsl(282 85% 65%) 0%, hsl(314 100% 50%) 50%, hsl(45 100% 50%) 100%);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -100,6 +139,41 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Beautiful component variants */
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+  
+  .card-gradient {
+    background: var(--gradient-card);
+  }
+  
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/80 dark:bg-card/80 border border-white/20;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .reader-mode {
+    background: var(--reader-bg);
+    color: var(--reader-text);
+  }
+  
+  .progress-bar {
+    background: var(--progress);
+  }
+  
+  .floating-action {
+    box-shadow: var(--shadow-float);
+    transition: var(--transition-bounce);
+  }
+  
+  .smooth-transition {
+    transition: var(--transition-smooth);
   }
 }

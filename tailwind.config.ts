@@ -22,6 +22,16 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+        },
+        progress: {
+          DEFAULT: "hsl(var(--progress))",
+          background: "hsl(var(--progress-bg))",
+        },
+        reader: {
+          bg: "hsl(var(--reader-bg))",
+          toolbar: "hsl(var(--reader-toolbar))",
+          text: "hsl(var(--reader-text))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
