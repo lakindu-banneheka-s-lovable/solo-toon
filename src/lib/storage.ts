@@ -143,6 +143,28 @@ export async function getSeriesProgress(seriesId: string): Promise<ReadingProgre
   return progress[seriesId] || null;
 }
 
+export async function getReadingProgress(seriesId: string): Promise<Record<string, ReadingProgress>> {
+  const allProgress = await getProgress();
+  const seriesProgress: Record<string, ReadingProgress> = {};
+  
+  Object.values(allProgress).forEach(progress => {
+    if (progress.seriesId === seriesId) {
+      seriesProgress[progress.chapterId] = progress;
+    }
+  });
+  
+  return seriesProgress;
+}
+
+export async function updateReadingProgress(
+  seriesId: string,
+  chapterId: string,
+  page: number,
+  totalPages: number
+): Promise<void> {
+  return updateProgress(seriesId, chapterId, page, totalPages);
+}
+
 // Settings operations
 export async function getSettings(): Promise<AppSettings> {
   try {

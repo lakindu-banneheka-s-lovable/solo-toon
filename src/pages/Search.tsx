@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Plus, Loader2, AlertCircle, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,12 +10,15 @@ import { useToast } from '@/hooks/use-toast';
 import { searchWithRetry } from '@/lib/api';
 import { addToLibrary, getLibrary } from '@/lib/storage';
 import { MangaSearchResult, LibrarySeries } from '@/types/manga';
+import SearchSuggestions from '@/components/SearchSuggestions';
+import AdvancedSearch from '@/components/AdvancedSearch';
 import { cn } from '@/lib/utils';
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [results, setResults] = useState<MangaSearchResult[]>([]);
@@ -23,6 +26,8 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [librarySeriesIds, setLibrarySeriesIds] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
 
   useEffect(() => {
     loadLibraryIds();
@@ -117,25 +122,50 @@ export default function SearchPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               type="search"
               placeholder="Search for manga titles..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-10 pr-12 h-12 text-lg"
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="pl-10 pr-20 h-12 text-lg"
               disabled={isLoading}
             />
-            <Button 
-              type="submit" 
-              size="sm" 
-              className="absolute right-1 top-1/2 -translate-y-1/2"
-              disabled={isLoading || !query.trim()}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowAdvancedSearch(true)}
+                disabled={isLoading}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              <Button 
+                type="submit" 
+                size="sm" 
+                disabled={isLoading || !query.trim()}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Search Suggestions */}
+            <SearchSuggestions
+              query={query}
+              isVisible={showSuggestions && !isLoading}
+              onSelect={(suggestion) => {
+                setQuery(suggestion);
+                setShowSuggestions(false);
+                setSearchParams({ q: suggestion });
+                performSearch(suggestion);
+              }}
+            />
           </div>
         </form>
       </div>
@@ -288,6 +318,21 @@ export default function SearchPage() {
           </p>
         </div>
       )}
+
+      {/* Advanced Search Modal */}
+      <AdvancedSearch
+        isOpen={showAdvancedSearch}
+        onClose={() => setShowAdvancedSearch(false)}
+        onSearch={(filters) => {
+          // For now, just use the basic query from advanced search
+          if (filters.query.trim()) {
+            setQuery(filters.query);
+            setSearchParams({ q: filters.query });
+            performSearch(filters.query);
+          }
+        }}
+        initialFilters={{ query }}
+      />
     </div>
   );
 }

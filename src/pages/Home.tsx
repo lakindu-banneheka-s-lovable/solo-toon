@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Plus, TrendingUp, Clock } from 'lucide-react';
-import heroBackground from '@/assets/hero-bg.jpg';
+import heroBg from '@/assets/hero-bg-blue.jpg';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { LibrarySeries, ReadingProgress } from '@/lib/storage';
 import { getLibrary, getProgress } from '@/lib/storage';
+import PopularSection from '@/components/PopularSection';
+import RecentlyReadSection from '@/components/RecentlyReadSection';
 import { cn } from '@/lib/utils';
 
 interface ContinueReadingData {
@@ -86,7 +88,7 @@ export default function Home() {
       <div className="relative overflow-hidden rounded-3xl mb-8">
         <div 
           className="h-80 bg-cover bg-center bg-no-repeat relative"
-          style={{ backgroundImage: `url(${heroBackground})` }}
+          style={{ backgroundImage: `url(${heroBg})` }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
           <div className="relative h-full flex items-center justify-center text-center px-6">
@@ -187,6 +189,12 @@ export default function Home() {
           </div>
         </Card>
       )}
+
+      {/* Popular Section */}
+      <PopularSection />
+
+      {/* Recently Read Section */}
+      <RecentlyReadSection />
 
       {/* Recently Added Section */}
       {recentlyAdded.length > 0 && (

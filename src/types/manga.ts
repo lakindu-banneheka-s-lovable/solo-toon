@@ -32,6 +32,7 @@ export interface MangaSearchResult {
 export interface MangaDetails extends Omit<MangaSearchResult, 'chapters'> {
   chaptersData?: Chapter[];
   chapters?: number;
+  members?: number;
 }
 
 export interface Chapter {
