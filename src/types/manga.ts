@@ -1,5 +1,11 @@
+export interface ConsumetMangaProvider {
+  id: string;
+  name: string;
+  languages: string[];
+}
+
 export interface MangaSearchResult {
-  mal_id: number;
+  mal_id: number | string;
   title: string;
   title_english?: string;
   title_japanese?: string;
@@ -27,12 +33,16 @@ export interface MangaSearchResult {
     from: string;
     to?: string;
   };
+  provider?: string;
+  providerId?: string;
 }
 
 export interface MangaDetails extends Omit<MangaSearchResult, 'chapters'> {
   chaptersData?: Chapter[];
   chapters?: number;
   members?: number;
+  provider?: string;
+  providerId?: string;
 }
 
 export interface Chapter {
@@ -43,10 +53,12 @@ export interface Chapter {
   publishAt: string;
   readAt?: string;
   externalUrl?: string;
+  provider?: string;
+  providerId?: string;
 }
 
 export interface LibrarySeries {
-  source: 'jikan' | 'custom';
+  source: 'jikan' | 'custom' | 'consumet';
   seriesId: string;
   title: string;
   coverUrl: string;
@@ -54,6 +66,8 @@ export interface LibrarySeries {
   addedAt: string;
   lastReadAt?: string;
   status: 'reading' | 'completed' | 'plan-to-read' | 'dropped';
+  provider?: string;
+  providerId?: string;
 }
 
 export interface ReadingProgress {

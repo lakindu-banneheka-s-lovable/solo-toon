@@ -6,12 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getMangaDetails, generateMockChapters } from '@/lib/api';
+import { getMangaDetails, getMangaChapters } from '@/lib/api';
 import { addToLibrary, getLibrary, updateReadingProgress, getReadingProgress, removeFromLibrary } from '@/lib/storage';
 import { MangaDetails, Chapter, LibrarySeries, ReadingProgress } from '@/types/manga';
 
 export default function SeriesDetail() {
-  const { source, seriesId } = useParams<{ source: string; seriesId: string }>();
+  const { provider, id } = useParams<{ provider: string; id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -27,19 +27,19 @@ export default function SeriesDetail() {
     loadSeriesData();
     checkLibraryStatus();
     loadProgress();
-  }, [source, seriesId]);
+  }, [provider, id]);
 
   const loadSeriesData = async () => {
-    if (!seriesId) return;
+    if (!id || !provider) return;
     
     try {
       setLoading(true);
-      const response = await getMangaDetails(parseInt(seriesId));
+      const [response, chaptersData] = await Promise.all([
+        getMangaDetails(id, provider),
+        getMangaChapters(id, provider)
+      ]);
       setDetails(response.data);
-      
-      // Generate mock chapters since Jikan doesn't provide chapter data
-      const mockChapters = generateMockChapters(parseInt(seriesId), response.data.chapters || 50);
-      setChapters(mockChapters);
+      setChapters(chaptersData);
     } catch (error) {
       toast({
         title: 'Error',
@@ -52,11 +52,11 @@ export default function SeriesDetail() {
   };
 
   const checkLibraryStatus = async () => {
-    if (!seriesId) return;
+    if (!id) return;
     
     try {
       const library = await getLibrary();
-      const inLibrary = library.some(s => s.seriesId === seriesId);
+      const inLibrary = library.some(s => s.seriesId === id);
       setIsInLibrary(inLibrary);
     } catch (error) {
       console.error('Failed to check library status:', error);
@@ -64,10 +64,10 @@ export default function SeriesDetail() {
   };
 
   const loadProgress = async () => {
-    if (!seriesId) return;
+    if (!id) return;
     
     try {
-      const seriesProgress = await getReadingProgress(seriesId);
+      const seriesProgress = await getReadingProgress(id);
       setProgress(seriesProgress);
     } catch (error) {
       console.error('Failed to load progress:', error);
@@ -75,16 +75,18 @@ export default function SeriesDetail() {
   };
 
   const handleAddToLibrary = async () => {
-    if (!details || !seriesId) return;
+    if (!details || !id) return;
 
     try {
       const series: Omit<LibrarySeries, 'addedAt'> = {
-        source: (source as 'jikan' | 'custom') || 'jikan',
-        seriesId,
+        source: 'consumet',
+        seriesId: id,
         title: details.title,
         coverUrl: details.images.jpg.large_image_url || details.images.jpg.image_url,
         lang: 'en',
-        status: 'plan-to-read'
+        status: 'plan-to-read',
+        provider,
+        providerId: details.providerId
       };
 
       await addToLibrary(series);
@@ -104,10 +106,10 @@ export default function SeriesDetail() {
   };
 
   const handleRemoveFromLibrary = async () => {
-    if (!details || !seriesId) return;
+    if (!details || !id) return;
 
     try {
-      await removeFromLibrary(source || 'jikan', seriesId);
+      await removeFromLibrary('consumet', id);
       setIsInLibrary(false);
       
       toast({

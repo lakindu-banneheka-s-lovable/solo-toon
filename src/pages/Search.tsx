@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { searchWithRetry, getPopularManga } from '@/lib/api';
+import { searchWithRetry, getPopularManga, searchMultipleProviders, MANGA_PROVIDERS } from '@/lib/api';
 import { addToLibrary, getLibrary } from '@/lib/storage';
 import { MangaSearchResult, LibrarySeries } from '@/types/manga';
 import SearchSuggestions from '@/components/SearchSuggestions';
@@ -31,6 +31,8 @@ export default function SearchPage() {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProvider, setSelectedProvider] = useState('all');
+  const [selectedLanguage, setSelectedLanguage] = useState('all');
 
   useEffect(() => {
     loadLibraryIds();
@@ -494,19 +496,21 @@ export default function SearchPage() {
 
 
       {/* Advanced Search Modal */}
-      <AdvancedSearch
-        isOpen={showAdvancedSearch}
-        onClose={() => setShowAdvancedSearch(false)}
-        onSearch={(filters) => {
-          // For now, just use the basic query from advanced search
-          if (filters.query.trim()) {
-            setQuery(filters.query);
-            setSearchParams({ q: filters.query });
-            performSearch(filters.query);
-          }
-        }}
-        initialFilters={{ query }}
-      />
+      {showAdvancedSearch && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <AdvancedSearch
+            onClose={() => setShowAdvancedSearch(false)}
+            onSearch={(searchQuery, provider, language) => {
+              setSelectedProvider(provider || 'all');
+              setSelectedLanguage(language || 'all');
+              setQuery(searchQuery);
+              setSearchParams({ q: searchQuery });
+              performSearch(searchQuery);
+              setShowAdvancedSearch(false);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
