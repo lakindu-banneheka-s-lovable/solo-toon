@@ -34,16 +34,47 @@ async function apiRequest<T>(url: string): Promise<T> {
   return response.json();
 }
 
-export async function searchManga(query: string, page = 1): Promise<{
+export async function searchManga(query: string, page = 1, orderBy = 'popularity', sort = 'desc'): Promise<{
   data: MangaSearchResult[];
   pagination: {
     current_page: number;
     has_next_page: boolean;
     last_visible_page: number;
+    items: {
+      count: number;
+      total: number;
+      per_page: number;
+    };
   };
 }> {
   const encodedQuery = encodeURIComponent(query.trim());
-  const url = `${JIKAN_BASE_URL}/manga?q=${encodedQuery}&page=${page}&limit=20&order_by=popularity&sort=desc`;
+  const url = `${JIKAN_BASE_URL}/manga?q=${encodedQuery}&page=${page}&limit=20&order_by=${orderBy}&sort=${sort}`;
+  
+  return apiRequest(url);
+}
+
+export async function getPopularManga(page = 1): Promise<{
+  data: MangaSearchResult[];
+  pagination: {
+    current_page: number;
+    has_next_page: boolean;
+    last_visible_page: number;
+    items: {
+      count: number;
+      total: number;
+      per_page: number;
+    };
+  };
+}> {
+  const url = `${JIKAN_BASE_URL}/top/manga?page=${page}&limit=20`;
+  return apiRequest(url);
+}
+
+export async function searchSuggestions(query: string): Promise<{ data: MangaSearchResult[] }> {
+  if (!query.trim()) return { data: [] };
+  
+  const encodedQuery = encodeURIComponent(query.trim());
+  const url = `${JIKAN_BASE_URL}/manga?q=${encodedQuery}&page=1&limit=5&order_by=popularity&sort=desc`;
   
   return apiRequest(url);
 }
@@ -87,13 +118,14 @@ export function getImageUrl(originalUrl: string, dataSaver: boolean = false): st
 
 export async function searchWithRetry(
   query: string, 
+  page = 1,
   maxRetries: number = 3
 ): Promise<{ data: MangaSearchResult[]; pagination: any }> {
   let lastError: Error;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await searchManga(query);
+      return await searchManga(query, page);
     } catch (error) {
       lastError = error as Error;
       

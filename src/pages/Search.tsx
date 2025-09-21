@@ -7,11 +7,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { searchWithRetry } from '@/lib/api';
+import { searchWithRetry, getPopularManga } from '@/lib/api';
 import { addToLibrary, getLibrary } from '@/lib/storage';
 import { MangaSearchResult, LibrarySeries } from '@/types/manga';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import AdvancedSearch from '@/components/AdvancedSearch';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
 
 export default function SearchPage() {
@@ -28,9 +29,12 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [pagination, setPagination] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadLibraryIds();
+    loadDefaultData();
   }, []);
 
   useEffect(() => {
@@ -40,6 +44,22 @@ export default function SearchPage() {
       performSearch(searchQuery);
     }
   }, [searchParams]);
+
+  const loadDefaultData = async () => {
+    if (!query) {
+      setIsLoading(true);
+      try {
+        const response = await getPopularManga(1);
+        setResults(response.data || []);
+        setPagination(response.pagination);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error('Failed to load default data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   const loadLibraryIds = async () => {
     try {
@@ -59,14 +79,19 @@ export default function SearchPage() {
     }
   };
 
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = async (searchQuery: string, page = 1) => {
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
 
     try {
-      const response = await searchWithRetry(searchQuery);
+      const response = searchQuery.trim() 
+        ? await searchWithRetry(searchQuery, page)
+        : await getPopularManga(page);
+      
       setResults(response.data || []);
+      setPagination(response.pagination);
+      setCurrentPage(page);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to search manga';
       setError(errorMessage);
@@ -75,6 +100,28 @@ export default function SearchPage() {
         description: errorMessage,
         variant: 'destructive'
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    if (query.trim()) {
+      performSearch(query, page);
+    } else {
+      loadDefaultDataForPage(page);
+    }
+  };
+
+  const loadDefaultDataForPage = async (page: number) => {
+    setIsLoading(true);
+    try {
+      const response = await getPopularManga(page);
+      setResults(response.data || []);
+      setPagination(response.pagination);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Failed to load data for page:', error);
     } finally {
       setIsLoading(false);
     }
@@ -198,8 +245,13 @@ export default function SearchPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">
-              Search Results ({results.length})
+              {query ? `Search Results (${pagination?.items?.total || results.length})` : `Popular Manga (${pagination?.items?.total || results.length})`}
             </h2>
+            {pagination && (
+              <div className="text-sm text-muted-foreground">
+                Page {currentPage} of {pagination.last_visible_page}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -289,6 +341,141 @@ export default function SearchPage() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          {pagination && pagination.last_visible_page > 1 && (
+            <div className="flex justify-center mt-8">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) {
+                          handlePageChange(currentPage - 1);
+                        }
+                      }}
+                      className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+                    />
+                  </PaginationItem>
+                  
+                  {/* First page */}
+                  {currentPage > 3 && (
+                    <>
+                      <PaginationItem>
+                        <PaginationLink 
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(1);
+                          }}
+                        >
+                          1
+                        </PaginationLink>
+                      </PaginationItem>
+                      {currentPage > 4 && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Current page range */}
+                  {Array.from({ length: Math.min(5, pagination.last_visible_page) }, (_, i) => {
+                    const page = Math.max(1, Math.min(currentPage - 2 + i, pagination.last_visible_page - 4 + i + 1));
+                    if (page > pagination.last_visible_page) return null;
+                    if (currentPage <= 3) {
+                      const displayPage = i + 1;
+                      if (displayPage > pagination.last_visible_page) return null;
+                      return (
+                        <PaginationItem key={displayPage}>
+                          <PaginationLink 
+                            href="#"
+                            isActive={currentPage === displayPage}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(displayPage);
+                            }}
+                          >
+                            {displayPage}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    }
+                    if (currentPage > pagination.last_visible_page - 3) {
+                      const displayPage = pagination.last_visible_page - 4 + i + 1;
+                      if (displayPage < 1) return null;
+                      return (
+                        <PaginationItem key={displayPage}>
+                          <PaginationLink 
+                            href="#"
+                            isActive={currentPage === displayPage}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(displayPage);
+                            }}
+                          >
+                            {displayPage}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    }
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink 
+                          href="#"
+                          isActive={currentPage === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  {/* Last page */}
+                  {currentPage < pagination.last_visible_page - 2 && (
+                    <>
+                      {currentPage < pagination.last_visible_page - 3 && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink 
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(pagination.last_visible_page);
+                          }}
+                        >
+                          {pagination.last_visible_page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </>
+                  )}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (pagination.has_next_page) {
+                          handlePageChange(currentPage + 1);
+                        }
+                      }}
+                      className={!pagination.has_next_page ? 'pointer-events-none opacity-50' : ''}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </div>
       )}
 
@@ -305,19 +492,6 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Welcome State */}
-      {!hasSearched && !isLoading && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Search className="h-8 w-8 text-primary" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">Discover New Manga</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Search for your favorite manga titles and add them to your library. 
-            We'll help you track your reading progress.
-          </p>
-        </div>
-      )}
 
       {/* Advanced Search Modal */}
       <AdvancedSearch

@@ -97,7 +97,7 @@ export default function LibraryPage() {
 
   const handleRemoveSeries = async (series: LibrarySeries) => {
     try {
-      await removeFromLibrary(series.seriesId, series.source);
+      await removeFromLibrary(series.source, series.seriesId);
       setLibrary(prev => prev.filter(s => 
         !(s.seriesId === series.seriesId && s.source === series.source)
       ));

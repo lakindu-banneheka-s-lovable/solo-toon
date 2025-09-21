@@ -65,10 +65,17 @@ export async function addToLibrary(series: Omit<LibrarySeries, 'addedAt'>): Prom
   }
 }
 
-export async function removeFromLibrary(seriesId: string, source: string): Promise<void> {
+export async function removeFromLibrary(source: string, seriesId: string): Promise<void> {
   const library = await getLibrary();
   const filtered = library.filter(s => !(s.seriesId === seriesId && s.source === source));
   await saveLibrary(filtered);
+  
+  // Also remove related progress
+  const allProgress = await getProgress();
+  const updatedProgress = Object.fromEntries(
+    Object.entries(allProgress).filter(([_, progress]) => progress.seriesId !== seriesId)
+  );
+  await saveProgress(updatedProgress);
 }
 
 export async function updateSeriesStatus(

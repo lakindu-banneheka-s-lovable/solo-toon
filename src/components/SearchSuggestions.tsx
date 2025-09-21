@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, TrendingUp } from 'lucide-react';
+import { Clock, TrendingUp, Search } from 'lucide-react';
+import { searchSuggestions } from '@/lib/api';
+import { MangaSearchResult } from '@/types/manga';
 
 interface SearchSuggestionsProps {
   query: string;
@@ -37,6 +39,8 @@ const GENRE_SUGGESTIONS = [
 
 export default function SearchSuggestions({ query, onSelect, isVisible }: SearchSuggestionsProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [apiSuggestions, setApiSuggestions] = useState<MangaSearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Load recent searches from localStorage
@@ -49,6 +53,32 @@ export default function SearchSuggestions({ query, onSelect, isVisible }: Search
       }
     }
   }, []);
+
+  const fetchSuggestions = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setApiSuggestions([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await searchSuggestions(searchQuery);
+      setApiSuggestions(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+      setApiSuggestions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchSuggestions(query);
+    }, 300); // Debounce API calls
+
+    return () => clearTimeout(timeoutId);
+  }, [query, fetchSuggestions]);
 
   const saveRecentSearch = (searchQuery: string) => {
     const trimmed = searchQuery.trim();
@@ -118,6 +148,80 @@ export default function SearchSuggestions({ query, onSelect, isVisible }: Search
               ))}
             </div>
           </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // Show API suggestions when user is typing
+  if (query.length >= 2) {
+    return (
+      <Card className="absolute top-full left-0 right-0 z-50 mt-1 p-4 shadow-lg">
+        <div className="space-y-4">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Search className="h-4 w-4 animate-pulse" />
+              Searching...
+            </div>
+          )}
+          
+          {!isLoading && apiSuggestions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Suggestions</span>
+              </div>
+              <div className="space-y-1">
+                {apiSuggestions.slice(0, 5).map((manga) => (
+                  <button
+                    key={manga.mal_id}
+                    className="flex items-center gap-3 w-full text-left px-2 py-2 rounded hover:bg-muted smooth-transition"
+                    onClick={() => handleSelect(manga.title)}
+                  >
+                    <img
+                      src={manga.images.jpg.small_image_url}
+                      alt={manga.title}
+                      className="w-8 h-10 object-cover rounded"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.svg';
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{manga.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {manga.status} • {manga.chapters ? `${manga.chapters} ch` : 'N/A'}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!isLoading && apiSuggestions.length === 0 && query.length >= 2 && (
+            <div className="text-sm text-muted-foreground text-center py-2">
+              No suggestions found
+            </div>
+          )}
+
+          {filteredPopular.length > 0 && (
+            <div>
+              <span className="text-sm font-medium text-muted-foreground mb-2 block">Popular</span>
+              <div className="flex flex-wrap gap-2">
+                {filteredPopular.slice(0, 3).map((suggestion) => (
+                  <Badge
+                    key={suggestion}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground smooth-transition"
+                    onClick={() => handleSelect(suggestion)}
+                  >
+                    {suggestion}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     );

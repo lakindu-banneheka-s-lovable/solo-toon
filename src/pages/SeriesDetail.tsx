@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Clock, Star, Users, Calendar, Plus, Check } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Star, Users, Calendar, Plus, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getMangaDetails, generateMockChapters } from '@/lib/api';
-import { addToLibrary, getLibrary, updateReadingProgress, getReadingProgress } from '@/lib/storage';
+import { addToLibrary, getLibrary, updateReadingProgress, getReadingProgress, removeFromLibrary } from '@/lib/storage';
 import { MangaDetails, Chapter, LibrarySeries, ReadingProgress } from '@/types/manga';
 
 export default function SeriesDetail() {
@@ -103,6 +103,26 @@ export default function SeriesDetail() {
     }
   };
 
+  const handleRemoveFromLibrary = async () => {
+    if (!details || !seriesId) return;
+
+    try {
+      await removeFromLibrary(source || 'jikan', seriesId);
+      setIsInLibrary(false);
+      
+      toast({
+        title: 'Removed from library',
+        description: `${details.title} has been removed from your library`
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to remove',
+        description: 'Could not remove manga from library',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleChapterClick = (chapter: Chapter) => {
     // For now, just show a toast since we don't have a reader implementation yet
     toast({
@@ -179,17 +199,29 @@ export default function SeriesDetail() {
             />
           </div>
           
-          {isInLibrary ? (
-            <Button className="w-full" disabled>
-              <Check className="mr-2 h-4 w-4" />
-              In Library
-            </Button>
-          ) : (
-            <Button className="w-full" onClick={handleAddToLibrary}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add to Library
-            </Button>
-          )}
+          <div className="space-y-2">
+            {isInLibrary ? (
+              <>
+                <Button className="w-full" disabled>
+                  <Check className="mr-2 h-4 w-4" />
+                  In Library
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={handleRemoveFromLibrary}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remove from Library
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={handleAddToLibrary}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add to Library
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -292,13 +324,15 @@ export default function SeriesDetail() {
             return (
               <Card
                 key={chapter.id}
-                className="hover:shadow-md smooth-transition cursor-pointer"
+                className={`hover:shadow-md smooth-transition cursor-pointer ${
+                  isRead ? 'bg-muted/50 border-muted' : ''
+                }`}
                 onClick={() => handleChapterClick(chapter)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium">
+                      <h4 className={`font-medium ${isRead ? 'text-muted-foreground' : ''}`}>
                         Chapter {chapter.chapter}
                         {chapter.title && chapter.title !== `Chapter ${chapter.chapter}` && (
                           <span className="font-normal text-muted-foreground ml-2">
