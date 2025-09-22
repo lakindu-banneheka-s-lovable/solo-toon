@@ -1,8 +1,9 @@
-import { MangaSearchResult, MangaDetails, Chapter, ConsumetMangaProvider } from '@/types/manga';
+// Legacy API - kept for backward compatibility
+// New API is in @/lib/manga/api
+import { MangaSearchResult, MangaDetails, Chapter as LegacyChapter, ConsumetMangaProvider } from '@/types/manga';
+import { searchMangaMulti, getMangaDetails as getNewMangaDetails, getChapters as getNewChapters, MANGA_PROVIDERS as NEW_PROVIDERS } from '@/lib/manga/api';
 
-const CONSUMET_BASE_URL = 'https://apiconsumetorg-kappa.vercel.app';
-
-// Available manga providers
+// Export provider registry for compatibility
 export const MANGA_PROVIDERS: ConsumetMangaProvider[] = [
   { id: 'mangadex', name: 'MangaDex', languages: ['en', 'ja', 'ko', 'zh', 'es', 'fr', 'de', 'pt-br', 'ru'] },
   { id: 'comick', name: 'ComicK', languages: ['en', 'ja', 'ko', 'zh'] },
@@ -10,38 +11,6 @@ export const MANGA_PROVIDERS: ConsumetMangaProvider[] = [
   { id: 'mangakakalot', name: 'Mangakakalot', languages: ['en'] },
   { id: 'mangapark', name: 'MangaPark', languages: ['en', 'ja', 'ko', 'zh'] }
 ];
-
-// Rate limiting helper
-class RateLimiter {
-  private lastRequest = 0;
-  private minInterval = 334; // ~3 requests per second (Jikan limit)
-
-  async throttle() {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequest;
-    
-    if (timeSinceLastRequest < this.minInterval) {
-      await new Promise(resolve => 
-        setTimeout(resolve, this.minInterval - timeSinceLastRequest)
-      );
-    }
-    
-    this.lastRequest = Date.now();
-  }
-}
-
-const rateLimiter = new RateLimiter();
-
-async function apiRequest<T>(url: string): Promise<T> {
-  await rateLimiter.throttle();
-  
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
-  }
-  
-  return response.json();
-}
 
 export async function searchManga(
   query: string, 
@@ -113,25 +82,15 @@ export async function getPopularManga(page = 1, provider = 'mangadx'): Promise<{
   };
 }> {
   try {
-    // Get popular manga by searching for popular terms
+    // Get popular manga by searching for popular terms using new API
     const popularQueries = ['one piece', 'naruto', 'attack on titan', 'demon slayer'];
     const randomQuery = popularQueries[Math.floor(Math.random() * popularQueries.length)];
     
-    const url = `${CONSUMET_BASE_URL}/manga/${provider}/${encodeURIComponent(randomQuery)}?page=${page}`;
-    const response = await apiRequest<any>(url);
+    const result = await searchMangaMulti(randomQuery, { page, providers: [provider === 'mangadx' ? 'mangadex' : provider] });
     
     return {
-      data: transformConsumetResults(response.results || [], provider),
-      pagination: {
-        current_page: response.currentPage || page,
-        has_next_page: response.hasNextPage || false,
-        last_visible_page: response.totalPages || page,
-        items: {
-          count: response.results?.length || 0,
-          total: response.totalResults || 0,
-          per_page: 20
-        }
-      }
+      data: result.data.map(manga => transformMangaToLegacy(manga)),
+      pagination: result.pagination
     };
   } catch (error) {
     console.error('Failed to get popular manga:', error);
@@ -150,13 +109,15 @@ export async function getPopularManga(page = 1, provider = 'mangadx'): Promise<{
 export async function searchSuggestions(query: string, provider = 'mangadx'): Promise<{ data: MangaSearchResult[] }> {
   if (!query.trim()) return { data: [] };
   
-  const encodedQuery = encodeURIComponent(query.trim());
-  const url = `${CONSUMET_BASE_URL}/manga/${provider}/${encodedQuery}?page=1`;
-  
   try {
-    const response = await apiRequest<any>(url);
+    const result = await searchMangaMulti(query, { 
+      page: 1, 
+      providers: [provider === 'mangadx' ? 'mangadex' : provider],
+      limit: 5 
+    });
+    
     return { 
-      data: transformConsumetResults((response.results || []).slice(0, 5), provider) 
+      data: result.data.map(manga => transformMangaToLegacy(manga))
     };
   } catch (error) {
     console.error('Failed to get suggestions:', error);
@@ -166,11 +127,24 @@ export async function searchSuggestions(query: string, provider = 'mangadx'): Pr
 
 export async function getMangaDetails(mangaId: string, provider = 'mangadx'): Promise<{ data: MangaDetails }> {
   try {
-    const url = `${CONSUMET_BASE_URL}/manga/${provider}/info/${mangaId}`;
-    const response = await apiRequest<any>(url);
+    const globalId = `${provider === 'mangadx' ? 'mangadex' : provider}:${mangaId}`;
+    const manga = await getNewMangaDetails(globalId);
+    const chapters = await getNewChapters(globalId);
     
     return { 
-      data: transformConsumetMangaDetails(response, provider) 
+      data: {
+        ...transformMangaToLegacy(manga),
+        chaptersData: chapters.map(chapter => ({
+          id: chapter.providerId,
+          title: chapter.title,
+          chapter: chapter.chapterNumber,
+          pages: chapter.pagesCount || 20,
+          publishAt: chapter.publishedAt,
+          externalUrl: chapter.externalUrl,
+          provider: chapter.provider,
+          providerId: chapter.providerId
+        }))
+      }
     };
   } catch (error) {
     console.error('Failed to get manga details:', error);
@@ -180,49 +154,58 @@ export async function getMangaDetails(mangaId: string, provider = 'mangadx'): Pr
 
 export async function getMangaChapters(mangaId: string, provider = 'mangadx'): Promise<Chapter[]> {
   try {
-    const url = `${CONSUMET_BASE_URL}/manga/${provider}/info/${mangaId}`;
-    const response = await apiRequest<any>(url);
+    const globalId = `${provider === 'mangadx' ? 'mangadex' : provider}:${mangaId}`;
+    const chapters = await getNewChapters(globalId);
     
-    return transformConsumetChapters(response.chapters || [], mangaId, provider);
+    return chapters.map(chapter => ({
+      id: chapter.providerId,
+      title: chapter.title,
+      chapter: chapter.chapterNumber,
+      pages: chapter.pagesCount || 20,
+      publishAt: chapter.publishedAt,
+      externalUrl: chapter.externalUrl,
+      provider: chapter.provider,
+      providerId: chapter.providerId
+    }));
   } catch (error) {
     console.error('Failed to get manga chapters:', error);
     return [];
   }
 }
 
-// Transform Consumet API results to our format
-function transformConsumetResults(results: any[], provider: string): MangaSearchResult[] {
-  return results.map((item, index) => ({
-    mal_id: item.id || `${provider}-${index}`,
-    title: item.title || 'Unknown Title',
-    title_english: item.title || undefined,
+// Transform new manga format to legacy format
+function transformMangaToLegacy(manga: any): MangaSearchResult {
+  return {
+    mal_id: manga.providerId,
+    title: manga.title,
+    title_english: manga.titleEnglish,
     images: {
       jpg: {
-        image_url: item.image || '/placeholder.svg',
-        small_image_url: item.image || '/placeholder.svg',
-        large_image_url: item.image || '/placeholder.svg'
+        image_url: manga.cover,
+        small_image_url: manga.cover,
+        large_image_url: manga.cover
       }
     },
-    status: item.status || 'Unknown',
-    chapters: item.chapters || undefined,
-    volumes: item.volumes || undefined,
-    score: item.rating || undefined,
-    synopsis: item.description || undefined,
-    genres: (item.genres || []).map((genre: any, idx: number) => ({
+    status: manga.status,
+    chapters: manga.chapters,
+    volumes: manga.volumes,
+    score: manga.score,
+    synopsis: manga.synopsis,
+    genres: manga.tags.map((tag: string, idx: number) => ({
       mal_id: idx,
-      name: typeof genre === 'string' ? genre : genre.name || genre
+      name: tag
     })),
-    authors: (item.authors || []).map((author: any, idx: number) => ({
+    authors: manga.authors.map((author: string, idx: number) => ({
       mal_id: idx,
-      name: typeof author === 'string' ? author : author.name || author
+      name: author
     })),
     published: {
-      from: item.releaseDate || new Date().toISOString(),
-      to: item.status === 'Completed' ? item.releaseDate : undefined
+      from: manga.year ? `${manga.year}-01-01` : new Date().toISOString(),
+      to: manga.status === 'Completed' ? `${manga.year || new Date().getFullYear()}-12-31` : undefined
     },
-    provider,
-    providerId: item.id
-  }));
+    provider: manga.provider,
+    providerId: manga.providerId
+  };
 }
 
 function transformConsumetMangaDetails(item: any, provider: string): MangaDetails {
