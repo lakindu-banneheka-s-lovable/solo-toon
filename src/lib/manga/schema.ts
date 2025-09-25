@@ -12,7 +12,7 @@ export const ProviderSearchResultSchema = z.object({
   rating: z.number().optional(),
   genres: z.array(z.union([z.string(), z.object({ name: z.string() })])).optional(),
   authors: z.array(z.union([z.string(), z.object({ name: z.string() })])).optional(),
-  releaseDate: z.string().optional(),
+  releaseDate: z.union([z.string(), z.number()]).optional(),
   url: z.string().optional()
 });
 
@@ -20,7 +20,7 @@ export const ProviderChapterSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
   chapterNumber: z.union([z.string(), z.number()]).optional(),
-  releaseDate: z.string().optional(),
+  releaseDate: z.union([z.string(), z.number()]).optional(),
   url: z.string().optional(),
   pages: z.number().optional()
 });
