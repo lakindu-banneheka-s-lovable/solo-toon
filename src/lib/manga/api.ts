@@ -136,7 +136,7 @@ export async function getMangaDetails(globalId: string): Promise<Manga> {
       synopsis: details.description,
       tags: (details.genres || []).map(g => typeof g === 'string' ? g : g.name),
       authors: (details.authors || []).map(a => typeof a === 'string' ? a : a.name),
-      year: details.releaseDate ? (typeof details.releaseDate === 'number' ? details.releaseDate : new Date(details.releaseDate).getFullYear()) : undefined,
+      year: details.releaseDate ? new Date(details.releaseDate).getFullYear() : undefined,
       provider: providerId,
       providerId: seriesId,
       chapters: details.chapters,
@@ -187,9 +187,7 @@ export async function getChapters(
       chapterNumber: chapter.chapterNumber?.toString() || '0',
       title: chapter.title || `Chapter ${chapter.chapterNumber}`,
       pagesCount: chapter.pages,
-      publishedAt: typeof chapter.releaseDate === 'number' 
-        ? new Date(chapter.releaseDate, 0, 1).toISOString()
-        : chapter.releaseDate || new Date().toISOString(),
+      publishedAt: chapter.releaseDate || new Date().toISOString(),
       externalUrl: chapter.url,
       provider: providerId,
       providerId: chapter.id

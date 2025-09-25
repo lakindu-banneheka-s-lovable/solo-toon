@@ -1,6 +1,6 @@
 // Legacy API - kept for backward compatibility
 // New API is in @/lib/manga/api
-import { MangaSearchResult, MangaDetails, Chapter, ConsumetMangaProvider } from '@/types/manga';
+import { MangaSearchResult, MangaDetails, Chapter as LegacyChapter, ConsumetMangaProvider } from '@/types/manga';
 import { searchMangaMulti, getMangaDetails as getNewMangaDetails, getChapters as getNewChapters, MANGA_PROVIDERS as NEW_PROVIDERS } from '@/lib/manga/api';
 
 // Export provider registry for compatibility
@@ -30,16 +30,29 @@ export async function searchManga(
     };
   };
 }> {
+  const encodedQuery = encodeURIComponent(query.trim());
+  let url = `${CONSUMET_BASE_URL}/manga/${provider}/${encodedQuery}?page=${page}`;
+  
+  if (language) {
+    url += `&lang=${language}`;
+  }
+  
   try {
-    const result = await searchMangaMulti(query, { 
-      page, 
-      providers: [provider === 'mangadx' ? 'mangadex' : provider],
-      lang: language
-    });
+    const response = await apiRequest<any>(url);
     
+    // Transform Consumet response to our format
     return {
-      data: result.data.map(manga => transformMangaToLegacy(manga)),
-      pagination: result.pagination
+      data: transformConsumetResults(response.results || [], provider),
+      pagination: {
+        current_page: response.currentPage || page,
+        has_next_page: response.hasNextPage || false,
+        last_visible_page: response.totalPages || page,
+        items: {
+          count: response.results?.length || 0,
+          total: response.totalResults || 0,
+          per_page: 20
+        }
+      }
     };
   } catch (error) {
     console.error('Search failed:', error);
@@ -283,27 +296,40 @@ export async function searchMultipleProviders(
   page = 1,
   language?: string
 ): Promise<{ data: MangaSearchResult[]; pagination: any }> {
-  try {
-    const result = await searchMangaMulti(query, { 
-      page, 
-      lang: language,
-      limit: 20
-    });
-    
-    return {
-      data: result.data.map(manga => transformMangaToLegacy(manga)),
-      pagination: result.pagination
-    };
-  } catch (error) {
-    console.error('Failed to search multiple providers:', error);
-    return {
-      data: [],
-      pagination: {
-        current_page: page,
-        has_next_page: false,
-        last_visible_page: page,
-        items: { count: 0, total: 0, per_page: 20 }
-      }
-    };
+  const providers = ['mangadx', 'comick', 'mangasee123'];
+  const results: MangaSearchResult[] = [];
+  const seenTitles = new Set<string>();
+  
+  for (const provider of providers) {
+    try {
+      const response = await searchManga(query, page, provider, language);
+      
+      // Deduplicate based on title similarity
+      response.data.forEach(manga => {
+        const normalizedTitle = manga.title.toLowerCase().replace(/[^\w\s]/g, '');
+        if (!seenTitles.has(normalizedTitle)) {
+          seenTitles.add(normalizedTitle);
+          results.push(manga);
+        }
+      });
+      
+      if (results.length >= 20) break; // Limit results
+    } catch (error) {
+      console.error(`Failed to search ${provider}:`, error);
+    }
   }
+  
+  return {
+    data: results.slice(0, 20),
+    pagination: {
+      current_page: page,
+      has_next_page: results.length >= 20,
+      last_visible_page: page + 1,
+      items: {
+        count: results.length,
+        total: results.length,
+        per_page: 20
+      }
+    }
+  };
 }
